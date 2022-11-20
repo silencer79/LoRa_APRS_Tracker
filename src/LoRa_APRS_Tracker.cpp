@@ -1,12 +1,13 @@
 #include <APRS-Decoder.h>
 #include <Arduino.h>
-#include <LoRa.h>
+//#include <LoRa.h>
+#include <RadioLib.h>
 #include <OneButton.h>
 #include <TimeLib.h>
 #include <TinyGPS++.h>
 #include <WiFi.h>
 #include <logger.h>
-
+#include <SPI.h>
 #include "BeaconManager.h"
 #include "configuration.h"
 #include "display.h"
@@ -14,7 +15,54 @@
 #include "power_management.h"
 
 #define VERSION "22.19.0"
+// Uncomment for SX126X module usage
+#define USE_SX126X
+#ifdef USE_SX126X
+#define MODULE_NAME   SX1268
+#else
+#define MODULE_NAME   SX1278
+#endif
+#undef LORA_SCK
+#define LORA_SCK              18
+#undef LORA_MISO
+#define LORA_MISO             19
+#undef LORA_MOSI
+#define LORA_MOSI             23
+#undef LORA_CS
+#define LORA_CS               5
 
+
+#undef LORA_RST
+#define LORA_RST              14
+#undef LORA_RST
+#define LORA_RST              14
+#undef LORA_RST
+#define LORA_RST              14
+#undef LORA_BUSY
+#define LORA_BUSY             39
+#undef LORA_RST
+#define LORA_RST              14
+#undef LORA_IRQ
+#define LORA_IRQ              33    //DIO1
+
+// LoRa pinouts
+#define CFG_LORA_PIN_SS       SS
+#define CFG_LORA_PIN_RST      LORA_RST
+#define CFG_LORA_PIN_A        LORA_IRQ    // (sx127x - dio0, sx126x/sx128x - dio1)
+#ifdef USE_SX126X
+#define CFG_LORA_PIN_B        39          // (sx127x - dio1, sx126x/sx128x - busy)
+#define CFG_LORA_PIN_RXEN     2           // (sx127x - unused, sx126x - RXEN pin number)
+#define CFG_LORA_PIN_TXEN     4           // (sx127x - unused, sx126x - TXEN pin number)
+#endif
+
+
+// SX1262 has the following connections:
+// NSS pin:   5
+// DIO1 pin:  33
+// NRST pin:  14
+// BUSY pin:  39
+SX1262 LoRa = new Module(LORA_CS, LORA_IRQ, LORA_RST, LORA_BUSY);
+  
 Configuration Config;
 BeaconManager BeaconMan;
 
@@ -129,19 +177,9 @@ void loop() {
     }
   }
 
-  bool          gps_time_update      = gps.time.isUpdated();
-  bool          gps_loc_update       = gps.location.isUpdated();
-  static bool   gps_loc_update_valid = false;
-  static time_t nextBeaconTimeStamp  = -1;
-
-  if (gps_loc_update != gps_loc_update_valid) {
-    gps_loc_update_valid = gps_loc_update;
-
-    if (gps_loc_update)
-      logPrintlnI("GPS fix state went to VALID");
-    else
-      logPrintlnI("GPS fix state went to INVALID");
-  }
+  bool          gps_time_update     = gps.time.isUpdated();
+  bool          gps_loc_update      = gps.location.isUpdated();
+  static time_t nextBeaconTimeStamp = -1;
 
   static double       currentHeading          = 0;
   static double       previousHeading         = 0;
@@ -184,12 +222,6 @@ void loop() {
     batteryChargeCurrent = String(powerManagement.getBatteryChargeDischargeCurrent(), 0);
   }
 #endif
-
-  if (powerManagement.isChargeing()) {
-    powerManagement.enableChgLed();
-  } else {
-    powerManagement.disableChgLed();
-  }
 
   if (!send_update && gps_loc_update && BeaconMan.getCurrentBeaconConfig()->smart_beacon.active) {
     uint32_t lastTx = millis() - lastTxTime;
@@ -290,8 +322,11 @@ void loop() {
       aprsmsg += " " + dao;
     }
 
-    msg.getBody()->setData(aprsmsg);
-    String data = msg.encode();
+    msg.getAPRSBody()->setData(aprsmsg);
+    String data = "<";
+    data = data + String(0xff);
+    data = data + String(0x01);
+    data = data + msg.encode();
     logPrintlnD(data);
     show_display("<< TX >>", data);
 
@@ -300,14 +335,14 @@ void loop() {
       delay(Config.ptt.start_delay);
     }
 
-    LoRa.beginPacket();
+    //LoRa.beginPacket();
     // Header:
-    LoRa.write('<');
-    LoRa.write(0xFF);
-    LoRa.write(0x01);
+    //LoRa.transmit('<', 1, 0);
+    //LoRa.transmit(0xFF);
+    //LoRa.transmit(0x01);
     // APRS Data:
-    LoRa.write((const uint8_t *)data.c_str(), data.length());
-    LoRa.endPacket();
+    LoRa.transmit((uint8_t *)data.c_str(), data.length(), 0);
+    //LoRa.endPacket();
 
     if (BeaconMan.getCurrentBeaconConfig()->smart_beacon.active) {
       lastTxLat       = gps.location.lat();
@@ -325,7 +360,7 @@ void loop() {
 
   if (gps_time_update) {
 
-    show_display(BeaconMan.getCurrentBeaconConfig()->callsign, createDateString(now()) + "   " + createTimeString(now()), String("Sats: ") + gps.satellites.value() + " HDOP: " + gps.hdop.hdop(), String("Next Bcn: ") + (BeaconMan.getCurrentBeaconConfig()->smart_beacon.active ? "~" : "") + createTimeString(nextBeaconTimeStamp), BatteryIsConnected ? (String("Bat: ") + batteryVoltage + "V, " + batteryChargeCurrent + "mA") : "Powered via USB", String("Smart Beacon: " + getSmartBeaconState()));
+    show_display(BeaconMan.getCurrentBeaconConfig()->callsign, createDateString(now()) + " " + createTimeString(now()), String("Sats: ") + gps.satellites.value() + " HDOP: " + gps.hdop.hdop(), String("Nxt Bcn: ") + (BeaconMan.getCurrentBeaconConfig()->smart_beacon.active ? "~" : "") + createTimeString(nextBeaconTimeStamp), BatteryIsConnected ? (String("Bat: ") + batteryVoltage + "V, " + batteryChargeCurrent + "mA") : "Powered via USB", String("Smart Beacon: " + getSmartBeaconState()));
 
     if (BeaconMan.getCurrentBeaconConfig()->smart_beacon.active) {
       // Change the Tx internal based on the current speed
@@ -370,28 +405,46 @@ void load_config() {
     }
   }
 }
+// disable interrupt when it's not needed
+volatile bool enableInterrupt = true;
+// flag to indicate that a packet was sent or received
+volatile bool operationDone = false;
 
+void setFlag(void) {
+  // check if the interrupt is enabled
+  if(!enableInterrupt) {
+    return;
+  }
+
+  // we sent or received a packet, set the flag
+  operationDone = true;
+}
 void setup_lora() {
   logPrintlnI("Set SPI pins!");
   SPI.begin(LORA_SCK, LORA_MISO, LORA_MOSI, LORA_CS);
   logPrintlnI("Set LoRa pins!");
-  LoRa.setPins(LORA_CS, LORA_RST, LORA_IRQ);
+  LoRa.setRfSwitchPins(CFG_LORA_PIN_RXEN, CFG_LORA_PIN_TXEN);
+  LoRa.setDio1Action(setFlag);
+  //LoRa.setPins(LORA_CS, LORA_RST, LORA_IRQ);
 
-  long freq = Config.lora.frequencyTx;
+  float freq = Config.lora.frequencyTx;
+  float bw = Config.lora.signalBandwidth;
+  uint8_t sf = Config.lora.spreadingFactor;
+  uint8_t cr = Config.lora.codingRate4;
+  uint8_t power = Config.lora.power;
+  uint16_t preamble = Config.lora.preamblelengh;
+  
   logPrintI("frequency: ");
   logPrintlnI(String(freq));
-  if (!LoRa.begin(freq)) {
-    logPrintlnE("Starting LoRa failed!");
-    show_display("ERROR", "Starting LoRa failed!");
-    while (true) {
-    }
-  }
-  LoRa.setSpreadingFactor(Config.lora.spreadingFactor);
-  LoRa.setSignalBandwidth(Config.lora.signalBandwidth);
-  LoRa.setCodingRate4(Config.lora.codingRate4);
-  LoRa.enableCrc();
+  //LoRa.begin(433.775, 125.0, 12, 5, RADIOLIB_SX126X_SYNC_WORD_PRIVATE, 30, 8, 1.6, false);
+  LoRa.begin(freq, bw, sf, cr, RADIOLIB_SX126X_SYNC_WORD_PRIVATE, power, preamble, 1.6, false); 
 
-  LoRa.setTxPower(Config.lora.power);
+  //LoRa.setFrequency(freq);
+  LoRa.setRfSwitchPins(CFG_LORA_PIN_RXEN, CFG_LORA_PIN_TXEN);
+  LoRa.setDio1Action(setFlag);
+  LoRa.setCRC(1);
+  LoRa.explicitHeader();
+
   logPrintlnI("LoRa init done!");
   show_display("INFO", "LoRa init done!", 2000);
 }
@@ -502,7 +555,7 @@ String createDateString(time_t t) {
 }
 
 String createTimeString(time_t t) {
-  return String(padding(hour(t), 2) + ":" + padding(minute(t), 2) + ":" + padding(second(t), 2));
+  return String(padding(hour(t), 2) + "." + padding(minute(t), 2) + "." + padding(second(t), 2));
 }
 
 String getSmartBeaconState() {

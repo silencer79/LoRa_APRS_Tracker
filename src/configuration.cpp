@@ -69,15 +69,15 @@ Configuration ConfigurationManagement::readConfiguration() {
   conf.button.tx          = data["button"]["tx"] | false;
   conf.button.alt_message = data["button"]["alt_message"] | false;
 
-  conf.lora.frequencyRx     = data["lora"]["frequency_rx"] | 433775000;
-  conf.lora.frequencyTx     = data["lora"]["frequency_tx"] | 433775000;
-  conf.lora.power           = data["lora"]["power"] | 20;
+  conf.lora.frequencyRx     = data["lora"]["frequency_rx"] | 433.775;
+  conf.lora.frequencyTx     = data["lora"]["frequency_tx"] | 433.775;
+  conf.lora.power           = data["lora"]["power"] | 30;
   conf.lora.spreadingFactor = data["lora"]["spreading_factor"] | 12;
-  conf.lora.signalBandwidth = data["lora"]["signal_bandwidth"] | 125000;
+  conf.lora.signalBandwidth = data["lora"]["signal_bandwidth"] | 125.0;
   conf.lora.codingRate4     = data["lora"]["coding_rate4"] | 5;
 
   conf.ptt.active      = data["ptt_output"]["active"] | false;
-  conf.ptt.io_pin      = data["ptt_output"]["io_pin"] | 4;
+  conf.ptt.io_pin      = data["ptt_output"]["io_pin"] | 0;
   conf.ptt.start_delay = data["ptt_output"]["start_delay"] | 0;
   conf.ptt.end_delay   = data["ptt_output"]["end_delay"] | 0;
   conf.ptt.reverse     = data["ptt_output"]["reverse"] | false;

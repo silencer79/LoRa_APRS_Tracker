@@ -40,15 +40,18 @@ public:
 
   class LoRa {
   public:
-    LoRa() : frequencyRx(433775000), frequencyTx(433775000), power(20), spreadingFactor(12), signalBandwidth(125000), codingRate4(5) {
+    LoRa() : frequencyRx(433.775), frequencyTx(433.775), power(30), spreadingFactor(12), signalBandwidth(125.0), codingRate4(5), syncword(0x12), preamblelengh(8) {
     }
 
-    long frequencyRx;
-    long frequencyTx;
-    int  power;
-    int  spreadingFactor;
-    long signalBandwidth;
-    int  codingRate4;
+    float frequencyRx;
+    float frequencyTx;
+    uint8_t  power;
+    uint8_t  spreadingFactor;
+    float signalBandwidth;
+    uint8_t  codingRate4;
+    uint8_t  syncword;
+    uint16_t  preamblelengh;
+    
   };
 
   class PTT {

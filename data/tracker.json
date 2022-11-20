@@ -2,9 +2,9 @@
 	"debug": false,
 	"beacons": [
 		{
-			"callsign": "NOCALL-7",
+			"callsign": "DL5OP-8",
 			"path": "WIDE1-1",
-			"message": "LoRa Tracker",
+			"message": "LoRa Tracker eByte E22-400M30S 1W",
 			"timeout": 1,
 			"symbol": "[",
 			"overlay": "/",
@@ -26,11 +26,11 @@
 		"alt_message": true
 	},
 	"lora": {
-		"frequency_rx": 433775000,
-		"frequency_tx": 433775000,
-		"power": 20,
+		"frequency_rx": 433.775,
+		"frequency_tx": 433.775,
+		"power": 30,
 		"spreading_factor": 12,
-		"signal_bandwidth": 125000,
+		"signal_bandwidth": 125.0,
 		"coding_rate4": 5
 	},
 	"ptt_output": {
