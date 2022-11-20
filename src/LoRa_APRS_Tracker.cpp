@@ -324,8 +324,8 @@ void loop() {
 
     msg.getAPRSBody()->setData(aprsmsg);
     String data = "<";
-    data = data + String(0xff);
-    data = data + String(0x01);
+    data = data + char(0xFF);
+    data = data + char(0x01);
     data = data + msg.encode();
     logPrintlnD(data);
     show_display("<< TX >>", data);

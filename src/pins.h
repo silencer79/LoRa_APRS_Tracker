@@ -7,7 +7,7 @@
 
 #define OLED_SDA 21
 #define OLED_SCL 22
-#define OLED_RST 16
+#define OLED_RST -1
 
 #define BUTTON_PIN 0 // The middle button GPIO on the T-Beam
 
